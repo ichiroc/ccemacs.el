@@ -27,6 +27,8 @@
   "Stop every ccemacs session, used as `kill-emacs-hook'."
   (ignore-errors (ccemacs-server-stop-all)))
 
+(add-hook 'kill-emacs-hook #'ccemacs-shutdown-all)
+
 ;;;###autoload
 (defun ccemacs-menu ()
   "Pick a ccemacs command from a single entry point."

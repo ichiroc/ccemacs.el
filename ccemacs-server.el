@@ -146,6 +146,7 @@ different workspaces; calling twice for the same workspace is an error."
     (when existing
       (user-error "ccemacs server already running for %s on port %s"
                   workspace (ccemacs-session-port existing)))
+    (ccemacs-lockfile-cleanup-stale)
     (let* ((token (ccemacs-server--make-token))
            (session (make-ccemacs-session
                      :workspace workspace

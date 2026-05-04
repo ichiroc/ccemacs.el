@@ -47,5 +47,55 @@
       (when (file-exists-p parent)
         (delete-directory parent t)))))
 
+(ert-deftest ccemacs-lockfile-cleanup-stale-removes-dead-pid-files ()
+  "A lockfile whose pid is no longer alive must be deleted."
+  (let* ((tmp-dir (make-temp-file "ccemacs-test-stale-" t))
+         (ccemacs-lockfile-dir tmp-dir)
+         (alive-port 11111)
+         (dead-port 22222)
+         (alive-path (expand-file-name "11111.lock" tmp-dir))
+         (dead-path (expand-file-name "22222.lock" tmp-dir)))
+    (unwind-protect
+        (progn
+          (with-temp-file alive-path
+            (insert (json-serialize
+                     `(:pid ,(emacs-pid)
+                       :workspaceFolders ["/tmp/a"]
+                       :ideName "Emacs" :transport "ws"
+                       :authToken "alive"))))
+          (with-temp-file dead-path
+            (insert (json-serialize
+                     `(:pid 1
+                       :workspaceFolders ["/tmp/b"]
+                       :ideName "Emacs" :transport "ws"
+                       :authToken "dead"))))
+          ;; Pretend pid 1 is dead. We can't easily fake it, but pid 1
+          ;; is launchd on macOS / init on Linux — definitely alive.
+          ;; Use a pid that is overwhelmingly unlikely to exist instead.
+          (with-temp-file dead-path
+            (insert (json-serialize
+                     `(:pid 999999
+                       :workspaceFolders ["/tmp/b"]
+                       :ideName "Emacs" :transport "ws"
+                       :authToken "dead"))))
+          (ccemacs-lockfile-cleanup-stale)
+          (should (file-exists-p alive-path))
+          (should-not (file-exists-p dead-path)))
+      (when (file-exists-p tmp-dir)
+        (delete-directory tmp-dir t)))))
+
+(ert-deftest ccemacs-lockfile-cleanup-stale-skips-malformed-files ()
+  "Files that are not valid JSON should be left alone."
+  (let* ((tmp-dir (make-temp-file "ccemacs-test-mal-" t))
+         (ccemacs-lockfile-dir tmp-dir)
+         (path (expand-file-name "33333.lock" tmp-dir)))
+    (unwind-protect
+        (progn
+          (with-temp-file path (insert "not json"))
+          (ccemacs-lockfile-cleanup-stale)
+          (should (file-exists-p path)))
+      (when (file-exists-p tmp-dir)
+        (delete-directory tmp-dir t)))))
+
 (provide 'ccemacs-lockfile-test)
 ;;; ccemacs-lockfile-test.el ends here

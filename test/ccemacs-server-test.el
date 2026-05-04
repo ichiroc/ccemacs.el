@@ -5,6 +5,7 @@
 (require 'ert)
 (require 'json)
 (require 'websocket)
+(require 'ccemacs)
 (require 'ccemacs-server)
 
 (defun ccemacs-server-test--cleanup ()
@@ -100,6 +101,31 @@
       (when (file-exists-p ccemacs-lockfile-dir)
         (delete-directory ccemacs-lockfile-dir t))
       (when (file-exists-p ws) (delete-directory ws t)))))
+
+(ert-deftest ccemacs-server-start-clears-stale-lockfiles ()
+  "Lock files for dead pids must be removed when starting a session."
+  (let* ((ccemacs-lockfile-dir (make-temp-file "ccemacs-test-stale-" t))
+         (stale-path (expand-file-name "44444.lock" ccemacs-lockfile-dir))
+         (ws (file-name-as-directory (make-temp-file "ccemacs-ws-stale-" t))))
+    (unwind-protect
+        (progn
+          (with-temp-file stale-path
+            (insert (json-serialize
+                     `(:pid 999999
+                       :workspaceFolders ["/tmp/x"]
+                       :ideName "Emacs" :transport "ws"
+                       :authToken "stale"))))
+          (let ((default-directory ws))
+            (ccemacs-server-start))
+          (should-not (file-exists-p stale-path)))
+      (ccemacs-server-test--cleanup)
+      (when (file-exists-p ccemacs-lockfile-dir)
+        (delete-directory ccemacs-lockfile-dir t))
+      (when (file-exists-p ws) (delete-directory ws t)))))
+
+(ert-deftest ccemacs-shutdown-all-is-on-kill-emacs-hook ()
+  (require 'ccemacs)
+  (should (memq 'ccemacs-shutdown-all kill-emacs-hook)))
 
 (ert-deftest ccemacs-server-stop-only-stops-current-workspace ()
   (let* ((ccemacs-lockfile-dir (make-temp-file "ccemacs-test-stop-" t))

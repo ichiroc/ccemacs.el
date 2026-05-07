@@ -21,6 +21,7 @@
 (require 'ccemacs-diagnostics)
 (require 'ccemacs-tools)
 (require 'ccemacs-mention)
+(require 'ccemacs-tmux)
 
 ;;;###autoload
 (defun ccemacs-shutdown-all ()
@@ -37,7 +38,8 @@
           `(("Start server (current workspace)" . ccemacs-server-start)
             ("Stop server (current workspace)"  . ccemacs-server-stop)
             ("Stop all servers"                 . ccemacs-server-stop-all)
-            ("Send @-mention"                   . ccemacs-send-at-mention)))
+            ("Send @-mention"                   . ccemacs-send-at-mention)
+            ("Launch claude in tmux"            . ccemacs-tmux-launch-claude)))
          (label (completing-read "ccemacs: " (mapcar #'car entries) nil t))
          (cmd (cdr (assoc label entries))))
     (when cmd (call-interactively cmd))))
